@@ -7,7 +7,7 @@
 
 	<name>HTTP-RMI Client</name>
 	<description>Client for services provided by Tiny Container via HTTP-RMI protocol and for W3C events stream.</description>
-	<url></url>
+	<url>https://github.com/js-lib-com/net-client</url>
 
 	<developers>
 		<developer>
@@ -23,8 +23,8 @@
 	</licenses>
 
 	<scm>
-		<connection></connection>
-		<url></url>
+		<connection>https://github.com/js-lib-com/net-client.git</connection>
+		<url>https://github.com/js-lib-com/net-client</url>
 	</scm>
 
 	<properties>
