@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.js-lib</groupId>
 	<artifactId>js-net-client</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<packaging>jar</packaging>
 
 	<name>HTTP-RMI Client</name>
@@ -103,18 +103,23 @@
 		<dependency>
 			<groupId>com.js-lib</groupId>
 			<artifactId>js-dom</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.js-lib</groupId>
 			<artifactId>js-json</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.2</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.12</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.js-lib</groupId>
+			<artifactId>js-commons</artifactId>
+			<version>1.1.4</version>
 		</dependency>
 	</dependencies>
 
