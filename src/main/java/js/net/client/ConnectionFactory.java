@@ -26,6 +26,7 @@ import js.lang.BugError;
 import js.log.Log;
 import js.log.LogFactory;
 import js.rmi.RmiException;
+import js.util.Classes;
 import js.util.Files;
 
 /**
@@ -50,7 +51,7 @@ public class ConnectionFactory {
 	private static final Log log = LogFactory.getLog(ConnectionFactory.class);
 
 	/** Resource path for j(s)-lib certificate authority. It is a self-signed certificate included as resource into package. */
-	private static final String JS_LIB_CA_FILE = "js-lib.crt";
+	private static final String JS_LIB_CA_FILE = "/js-lib.crt";
 
 	/** Alias, that is, name of the j(s)-lib certificate authority. */
 	private static final String JS_LIB_CA_ALIAS = "j(s)-lib Certificate Authority";
@@ -69,7 +70,7 @@ public class ConnectionFactory {
 			KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
 			keystore.load(null, null);
 
-			inputStream = ConnectionFactory.class.getResourceAsStream(JS_LIB_CA_FILE);
+			inputStream = Classes.getResourceAsStream(JS_LIB_CA_FILE);
 			CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
 			X509Certificate certificate = (X509Certificate) certificateFactory.generateCertificate(inputStream);
 			keystore.setCertificateEntry(JS_LIB_CA_ALIAS, certificate);

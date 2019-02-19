@@ -7,7 +7,6 @@ import java.security.KeyStore;
  * {@link ConnectionFactory}.
  * 
  * @author Iulian Rotaru
- * @since 1.6
  * @version draft
  */
 public interface ClientKeyStoreManager {
