@@ -17,6 +17,7 @@ import js.json.Json;
 import js.json.JsonException;
 import js.json.impl.JsonParserException;
 import js.lang.Event;
+import js.lang.KeepAliveEvent;
 import js.log.Log;
 import js.log.LogFactory;
 import js.util.Base64;
