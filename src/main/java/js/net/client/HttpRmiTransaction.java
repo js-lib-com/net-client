@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
+import java.net.SocketException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -461,6 +462,9 @@ public class HttpRmiTransaction {
 		ValueReader valueReader = ClientEncoders.getInstance().getValueReader(connection);
 		try {
 			return valueReader.read(connection.getInputStream(), returnType);
+		}
+		catch (SocketException e) {
+			throw e;
 		} catch (IOException e) {
 			throw new BugError("Invalid HTTP-RMI transaction with |%s|. Response cannot be parsed to type |%s|. Cause: %s", connection.getURL(), returnType, e);
 		}

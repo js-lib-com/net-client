@@ -23,7 +23,8 @@ public class EventReaderUnitTest extends TestCase {
 
 	public void testNotificationEvent() throws Exception {
 		String eventStream = "" + //
-				"data:{\"class\":\"js.net.client.fixture.Notification\",\"id\":20,\"text\":\"Baby server was stopped.\",\"timestamp\":\"2014-05-31T10:19:28Z\"}\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n"+//
+				"data:{\"id\":20,\"text\":\"Baby server was stopped.\",\"timestamp\":\"2014-05-31T10:19:28Z\"}\r\n" + //
 				"\r\n";
 
 		Event event = reader(eventStream).read();
@@ -34,7 +35,8 @@ public class EventReaderUnitTest extends TestCase {
 		String eventStream = "" + //
 				"data:\r\n" + //
 				"\r\n" + //
-				"data:{\"class\":\"js.net.client.fixture.Notification\",\"id\":20,\"text\":\"Baby server was stopped.\",\"timestamp\":\"2014-05-31T10:19:28Z\"}\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n"+//
+				"data:{\"id\":20,\"text\":\"Baby server was stopped.\",\"timestamp\":\"2014-05-31T10:19:28Z\"}\r\n" + //
 				"\r\n";
 
 		Event event = reader(eventStream).read();
@@ -91,7 +93,7 @@ public class EventReaderUnitTest extends TestCase {
 
 	public void _testEmptyDataFieldValue() throws Exception {
 		String eventStream = "" + //
-				"event:js.test.net.EventReaderUnitTest$Notification\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n" + //
 				"data:\r\n" + //
 				"\r\n";
 
@@ -109,8 +111,8 @@ public class EventReaderUnitTest extends TestCase {
 
 	public void testInvalidDataFieldValue() throws Exception {
 		String eventStream = "" + //
-				"event:js.test.net.EventReaderUnitTest$Notification\r\n" + //
-				"data:invalid\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n" + //
+				"data:{invalid}\r\n" + //
 				"\r\n";
 
 		boolean exception = false;
@@ -127,7 +129,7 @@ public class EventReaderUnitTest extends TestCase {
 
 	public void testBadFieldNameCase() throws Exception {
 		String eventStream = "" + //
-				"EVENT:js.test.net.EventReaderUnitTest$Notification\r\n" + //
+				"EVENT:js.net.client.fixture.Notification\r\n" + //
 				"DATA:{}\r\n" + //
 				"\r\n";
 
@@ -146,7 +148,7 @@ public class EventReaderUnitTest extends TestCase {
 	public void _testBadFieldsOrder() throws Exception {
 		String eventStream = "" + //
 				"data:{}\r\n" + //
-				"event:js.test.net.EventReaderUnitTest$Notification\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n" + //
 				"\r\n";
 
 		boolean exception = false;
@@ -166,21 +168,21 @@ public class EventReaderUnitTest extends TestCase {
 	 */
 	public void _testMissingEventCRLF() throws Exception {
 		String eventStream = "" + //
-				"data:{\"class\":\"js.test.net.EventReaderUnitTest$Notification\"}\r\n";
+				"data:{\"class\":\"js.net.client.fixture.Notification\"}\r\n";
 
 		assertNull(reader(eventStream).read());
 	}
 
 	public void testMissingEventDataField() throws Exception {
 		String eventStream = "" + //
-				"event:js.test.net.EventReaderUnitTest$Notification\r\n";
+				"event:js.net.client.fixture.Notification\r\n";
 
 		assertNull(reader(eventStream).read());
 	}
 
 	public void testMissingEventDataFieldValue() throws Exception {
 		String eventStream = "" + //
-				"event:js.test.net.EventReaderUnitTest$Notification\r\n" + //
+				"event:js.net.client.fixture.Notification\r\n" + //
 				"data:";
 
 		assertNull(reader(eventStream).read());

@@ -3,7 +3,6 @@ package js.net.client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
@@ -15,7 +14,6 @@ import javax.crypto.SecretKey;
 
 import js.json.Json;
 import js.json.JsonException;
-import js.json.impl.JsonParserException;
 import js.lang.Event;
 import js.lang.KeepAliveEvent;
 import js.log.Log;
@@ -98,7 +96,6 @@ public class EventReader {
 	 * @throws IOException if read from events stream fails for any reason, including read timeout, if stream is configured
 	 *             with.
 	 * @throws ClassNotFoundException if parsed event class is not found in this virtual machine.
-	 * @throws JsonParserException if <code>data</code> field value is empty or has not a valid JSON syntax.
 	 * @throws IllegalStateException if given events stream does not obey the grammar, as described into this class description.
 	 * @throws NoSuchPaddingException if no encryption padding implementation not found.
 	 * @throws NoSuchAlgorithmException if there is no support for <code>AES</code> encryption.
@@ -204,9 +201,8 @@ public class EventReader {
 					message = new String(cipher.doFinal(Base64.decode(message)));
 				}
 
-				StringReader jsonReader = new StringReader(message);
-				event = json.parseObject(jsonReader);
-				jsonReader.close();
+				// TODO: server stream event name is simple, not qualified; it cannot be used for class load
+				event = json.parse(message, Classes.forName(eventBuilder.toString()));
 				break EVENT_READ_LOOP;
 
 			case ID:
