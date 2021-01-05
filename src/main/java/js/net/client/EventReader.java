@@ -3,22 +3,14 @@ package js.net.client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
+import java.util.Map;
 
 import js.json.Json;
-import js.json.JsonException;
 import js.lang.Event;
 import js.lang.KeepAliveEvent;
+import js.lang.NoSuchBeingException;
 import js.log.Log;
 import js.log.LogFactory;
-import js.util.Base64;
 import js.util.Classes;
 import js.util.Files;
 
@@ -48,31 +40,21 @@ public class EventReader {
 	/** Class logger. */
 	private static final Log log = LogFactory.getLog(EventReader.class);
 
+	private final Map<String, Class<? extends Event>> mappings;
+
 	/** Internal socket reader. */
 	private final BufferedReader reader;
 
 	/** JSON (de)serializer. */
 	private final Json json;
 
-	/** Optional symmetric key used to encrypt the event message using AES chiper. Default to null. */
-	private final SecretKey secretKey;
-
 	/**
 	 * Construct plain text event reader instance wrapping given input stream.
 	 * 
+	 * @param mappings event types mapping,
 	 * @param inputStream input stream carrying events.
 	 */
-	public EventReader(InputStream inputStream) {
-		this(inputStream, null);
-	}
-
-	/**
-	 * Construct secure event reader.
-	 * 
-	 * @param inputStream input stream carrying events,
-	 * @param secretKey secret key for symmetric encryption.
-	 */
-	public EventReader(InputStream inputStream, SecretKey secretKey) {
+	public EventReader(Map<String, Class<? extends Event>> mappings, InputStream inputStream) {
 		// important note:
 
 		// not fully understood but is possible to loss data if do not use buffered reader
@@ -83,9 +65,9 @@ public class EventReader {
 		// if sent events list with some delay between, everything works as expected
 		// after added buffered reader everything is all right, even with large list of events
 
+		this.mappings = mappings;
 		this.json = Classes.loadService(Json.class);
 		this.reader = Files.createBufferedReader(inputStream);
-		this.secretKey = secretKey;
 	}
 
 	/**
@@ -95,15 +77,8 @@ public class EventReader {
 	 * @return server sent event or null for end of file.
 	 * @throws IOException if read from events stream fails for any reason, including read timeout, if stream is configured
 	 *             with.
-	 * @throws ClassNotFoundException if parsed event class is not found in this virtual machine.
-	 * @throws IllegalStateException if given events stream does not obey the grammar, as described into this class description.
-	 * @throws NoSuchPaddingException if no encryption padding implementation not found.
-	 * @throws NoSuchAlgorithmException if there is no support for <code>AES</code> encryption.
-	 * @throws InvalidKeyException if {@link #secretKey} is invalid.
-	 * @throws BadPaddingException if encryption padding fails.
-	 * @throws IllegalBlockSizeException invalid encryption block length.
 	 */
-	public Event read() throws IOException, ClassNotFoundException, JsonException, IllegalStateException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+	public Event read() throws IOException {
 		StringBuilder eventBuilder = new StringBuilder();
 		Event event = null;
 		State state = State.NEW_EVENT;
@@ -195,14 +170,12 @@ public class EventReader {
 					continue;
 				}
 
-				if (this.secretKey != null) {
-					Cipher cipher = Cipher.getInstance("AES");
-					cipher.init(Cipher.DECRYPT_MODE, secretKey);
-					message = new String(cipher.doFinal(Base64.decode(message)));
+				String eventName = eventBuilder.toString();
+				Class<? extends Event> eventClass = mappings.get(eventName);
+				if (eventClass == null) {
+					throw new NoSuchBeingException("No class registered for event |%s|.", eventName);
 				}
-
-				// TODO: server stream event name is simple, not qualified; it cannot be used for class load
-				event = json.parse(message, Classes.forName(eventBuilder.toString()));
+				event = json.parse(message, eventClass);
 				break EVENT_READ_LOOP;
 
 			case ID:

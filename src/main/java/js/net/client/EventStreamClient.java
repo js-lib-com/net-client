@@ -3,12 +3,16 @@ package js.net.client;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import js.lang.BugError;
 import js.lang.Callback;
 import js.lang.Event;
+import js.lang.KeepAliveEvent;
 import js.log.Log;
 import js.log.LogFactory;
 import js.util.Files;
@@ -72,6 +76,10 @@ public class EventStreamClient implements Runnable {
 	 */
 	private static final int READ_TIMEOUT = 50000;
 
+	private final Object lock = new Object();
+
+	private final Map<String, Class<? extends Event>> mappings = new HashMap<>();
+
 	/** Receiving thread. */
 	private Thread thread;
 
@@ -86,6 +94,7 @@ public class EventStreamClient implements Runnable {
 
 	/** Default constructor. */
 	public EventStreamClient() {
+		mappings.put("KeepAliveEvent", KeepAliveEvent.class);
 	}
 
 	/**
@@ -96,7 +105,12 @@ public class EventStreamClient implements Runnable {
 	 * @throws IOException if event stream connection fails.
 	 */
 	public EventStreamClient(URL eventStreamURL) throws IOException {
+		this();
 		open(eventStreamURL);
+	}
+
+	public void addMapping(String eventName, Class<? extends Event> eventType) {
+		mappings.put(eventName, eventType);
 	}
 
 	/**
@@ -140,9 +154,9 @@ public class EventStreamClient implements Runnable {
 		}
 		this.callback = callback;
 		thread = new Thread(this, getClass().getSimpleName());
-		synchronized (this) {
+		synchronized (lock) {
 			thread.start();
-			thread.wait(THREAD_START_TIMEOUT);
+			lock.wait(THREAD_START_TIMEOUT);
 		}
 	}
 
@@ -157,9 +171,9 @@ public class EventStreamClient implements Runnable {
 		if (connection != null) {
 			Files.close(inputStream);
 			if (thread.isAlive()) {
-				synchronized (this) {
+				synchronized (lock) {
 					if (thread.isAlive()) {
-						thread.wait(THREAD_STOP_TIMEOUT);
+						lock.wait(THREAD_STOP_TIMEOUT);
 					}
 				}
 			}
@@ -169,13 +183,13 @@ public class EventStreamClient implements Runnable {
 	@Override
 	public void run() {
 		log.debug("Start event stream |%s| client on thread |%s|.", connection.getURL(), thread);
-		synchronized (this) {
-			this.notify();
+		synchronized (lock) {
+			lock.notify();
 		}
 
-		EventReader eventReader = new EventReader(this.inputStream);
+		long connectionStartTimestamp = System.currentTimeMillis();
+		EventReader eventReader = new EventReader(mappings, inputStream);
 		try {
-			long connectionStartTimestamp = System.currentTimeMillis();
 			for (;;) {
 				Event event = eventReader.read();
 				if (event == null) {
@@ -183,18 +197,21 @@ public class EventStreamClient implements Runnable {
 				}
 				callback.handle(event);
 			}
-			long connectionTime = System.currentTimeMillis() - connectionStartTimestamp;
-			log.debug("Exit event stream |%s| reader loop. Connection time %d msec.", connection.getURL(), connectionTime);
 		} catch (SocketTimeoutException e) {
 			log.error("Event stream |%s read timeout.|", connection.getURL());
+		} catch (SocketException e) {
+			log.debug("Event reader closed due to socket exception: %s", e.getMessage());
 		} catch (Throwable t) {
 			log.error(t);
 		} finally {
 			Files.close(inputStream);
 		}
 
-		synchronized (this) {
-			this.notify();
+		long connectionTime = System.currentTimeMillis() - connectionStartTimestamp;
+		log.debug("Exit event stream |%s| reader loop. Connection time %d msec.", connection.getURL(), connectionTime);
+
+		synchronized (lock) {
+			lock.notify();
 		}
 		log.debug("Stop event stream |%s| client on thread |%s|.", connection.getURL(), thread);
 	}
