@@ -22,12 +22,10 @@ public class HttpRmiClient {
 		this.className = className;
 	}
 
-	/** @see HttpRmiTransaction#setReturnType(Type) */
 	public void setReturnType(Type returnType) {
 		transaction.setReturnType(returnType);
 	}
 
-	/** @see HttpRmiTransaction#setExceptions(Class[]) */
 	public void setExceptions(Class<?>... exceptions) {
 		transaction.setExceptions(exceptions);
 	}

@@ -14,7 +14,7 @@ import js.util.Types;
 /**
  * Java Proxy invocation handler responsible for remote method invocation transaction execution. Proxy class bytecode is
  * generated at first invocation and cached and is used to create a Proxy instance for HTTP-RMI transaction - see
- * {@link HttpRmiFactory#getRemoteInstance(String, Class)}. Proxy instance does not store transaction state and can be reused.
+ * {@link HttpRmiFactory#getRemoteInstance(Class, String)}. Proxy instance does not store transaction state and can be reused.
  * <p>
  * In sample code, <code>service</code> instance is reused for both remote method invocations, executed at arbitrary points in
  * time.

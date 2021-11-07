@@ -28,7 +28,7 @@ public final class HttpRmiFactory implements RemoteFactory {
 	 * @throws IllegalArgumentException if <code>interfaceClass</code> is null.
 	 */
 	@SuppressWarnings("unchecked")
-	public <I> I getRemoteInstance(String implementationURL, Class<? super I> interfaceClass) {
+	public <I> I getRemoteInstance(Class<? super I> interfaceClass, String implementationURL) {
 		Params.notNull(implementationURL, "Implementation URL");
 		Params.notNull(interfaceClass, "Interface class");
 		// at this point we know that interface class is a super of returned instance class so is safe to suppress warning
