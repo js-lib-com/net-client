@@ -8,7 +8,6 @@ import java.util.Map;
 import js.json.Json;
 import js.lang.Event;
 import js.lang.KeepAliveEvent;
-import js.lang.NoSuchBeingException;
 import js.log.Log;
 import js.log.LogFactory;
 import js.util.Classes;
@@ -93,6 +92,7 @@ public class EventReader {
 
 			switch (state) {
 			case NEW_EVENT:
+				eventBuilder.setLength(0);
 				assert field == Field.NONE;
 				state = State.NEW_FIELD;
 
@@ -173,7 +173,10 @@ public class EventReader {
 				String eventName = eventBuilder.toString();
 				Class<? extends Event> eventClass = mappings.get(eventName);
 				if (eventClass == null) {
-					throw new NoSuchBeingException("No class registered for event |%s|.", eventName);
+					log.debug("No class registered for event |%s|. Event discarded.", eventName);
+					state = State.NEW_EVENT;
+					field = Field.NONE;
+					continue EVENT_READ_LOOP;
 				}
 				event = json.parse(message, eventClass);
 				break EVENT_READ_LOOP;
@@ -211,7 +214,6 @@ public class EventReader {
 					throw new IllegalStateException();
 				}
 				if (event instanceof KeepAliveEvent) {
-					eventBuilder.setLength(0);
 					state = State.NEW_EVENT;
 					field = Field.NONE;
 				} else {
