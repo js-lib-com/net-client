@@ -8,9 +8,8 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
-import js.lang.BugError;
-import js.lang.Callback;
 import js.lang.Event;
 import js.lang.KeepAliveEvent;
 import js.log.Log;
@@ -27,7 +26,7 @@ import js.util.Files;
  * <pre>
  * EventStreamClient client = new EventStreamClient();
  * client.open(new URL(&quot;http://hub.bbnet.ro/notification.event&quot;));
- * client.read(new Callback&lt;Event&gt;()
+ * client.read(new Consumer&lt;Event&gt;()
  * {
  *   public void handle(Event event)
  *   {
@@ -48,12 +47,11 @@ import js.util.Files;
  * @since 1.7
  * @version draft
  */
-public class EventStreamClient implements Runnable {
-	/** Class logger. */
+public class EventStreamClient implements Runnable, AutoCloseable {
 	private static final Log log = LogFactory.getLog(EventStreamClient.class);
 
 	/**
-	 * Receiving thread start timeout. Receiving thread is started by {@link #read(Callback)} method that waits till thread is
+	 * Receiving thread start timeout. Receiving thread is started by {@link #read(Consumer)} method that waits till thread is
 	 * actually running. If this timeout expires read method returns anyway.
 	 */
 	private static final int THREAD_START_TIMEOUT = 2000;
@@ -90,7 +88,7 @@ public class EventStreamClient implements Runnable {
 	private InputStream inputStream;
 
 	/** Asynchronous callback invoked when new event is available or on receiving thread error. */
-	private Callback<Event> callback;
+	private Consumer<Event> callback;
 
 	/** Default constructor. */
 	public EventStreamClient() {
@@ -111,6 +109,10 @@ public class EventStreamClient implements Runnable {
 
 	public void addMapping(String eventName, Class<? extends Event> eventType) {
 		mappings.put(eventName, eventType);
+	}
+
+	public void addMapping(Class<? extends Event> eventType) {
+		mappings.put(eventType.getSimpleName(), eventType);
 	}
 
 	/**
@@ -136,21 +138,27 @@ public class EventStreamClient implements Runnable {
 		inputStream = connection.getInputStream();
 	}
 
+	public void open(String eventStreamURL) {
+	}
+
+	public <E extends Event> void addEventListener(Class<E> eventType, Consumer<E> listener) {
+	}
+
 	/**
 	 * Read asynchronously events from connected event stream. This method start read thread and returns immediately. Given
-	 * callback argument is used to pass events; when a new event arrives from server {@link Callback#handle(Object)} is
+	 * callback argument is used to pass events; when a new event arrives from server {@link Consumer#accept(Object)} is
 	 * invoked.
 	 * <p>
 	 * Please note that this method should be used on a connected event stream, i.e. after {@link #open(URL)} or auto-open
 	 * constructor.
 	 * 
 	 * @param callback callback invoked on new event or on error.
-	 * @throws BugError if attempt to use this method on a not connected event stream.
+	 * @throws IllegalStateException if attempt to use this method on a not connected event stream.
 	 * @throws InterruptedException if waiting for thread start is interrupted.
 	 */
-	public void read(Callback<Event> callback) throws BugError, InterruptedException {
+	public void read(Consumer<Event> callback) throws IllegalStateException, InterruptedException {
 		if (inputStream == null) {
-			throw new BugError("Attempt to read from a not connected event stream.");
+			throw new IllegalStateException("Attempt to read from a not connected event stream.");
 		}
 		this.callback = callback;
 		thread = new Thread(this, getClass().getSimpleName());
@@ -160,20 +168,28 @@ public class EventStreamClient implements Runnable {
 		}
 	}
 
+	public void await(Consumer<Event> callback) {
+		this.callback = callback;
+		run();
+	}
+
 	/**
 	 * Close this event stream client. This method stops receiving thread and closes internal input stream. It is not necessary
 	 * if end of event stream is controlled by server side, in with case this event stream client does auto-close.
-	 * 
-	 * @throws InterruptedException if waiting for thread close is interrupted.
 	 */
-	public void close() throws InterruptedException {
+	@Override
+	public void close() {
 		assert connection != null;
 		if (connection != null) {
 			Files.close(inputStream);
 			if (thread.isAlive()) {
 				synchronized (lock) {
 					if (thread.isAlive()) {
-						lock.wait(THREAD_STOP_TIMEOUT);
+						try {
+							lock.wait(THREAD_STOP_TIMEOUT);
+						} catch (InterruptedException e) {
+							log.error(e);
+						}
 					}
 				}
 			}
@@ -195,7 +211,7 @@ public class EventStreamClient implements Runnable {
 				if (event == null) {
 					break;
 				}
-				callback.handle(event);
+				callback.accept(event);
 			}
 		} catch (SocketTimeoutException e) {
 			log.error("Event stream |%s read timeout.|", connection.getURL());
