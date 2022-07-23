@@ -40,7 +40,7 @@
 		<dependency>
 			<groupId>com.js-lib</groupId>
 			<artifactId>js-json-api</artifactId>
-			<version>2.1</version>
+			<version>2.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.js-lib</groupId>
@@ -85,9 +85,6 @@
 				<version>2.12</version>
 				<configuration>
 					<junitArtifactName>junit:junit</junitArtifactName>
-					<encoding>UTF-8</encoding>
-					<inputEncoding>UTF-8</inputEncoding>
-					<outputEncoding>UTF-8</outputEncoding>
 					<argLine>-ea -Dfile.encoding=UTF-8</argLine>
 				</configuration>
 			</plugin>
@@ -115,7 +112,9 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
+							<source>8</source>
 							<show>private</show>
+							<doclint>none</doclint>
 						</configuration>
 					</execution>
 				</executions>
@@ -163,28 +162,4 @@
 			</build>
 		</profile>
 	</profiles>
-
-	<repositories>
-		<repository>
-			<id>js-lib</id>
-			<url>https://maven.js-lib.com/</url>
-		</repository>
-	</repositories>
-	<pluginRepositories>
-		<pluginRepository>
-			<id>js-lib</id>
-			<url>https://maven.js-lib.com/</url>
-		</pluginRepository>
-	</pluginRepositories>
-
-	<distributionManagement>
-		<snapshotRepository>
-			<id>js-lib</id>
-			<url>https://maven.js-lib.com/</url>
-		</snapshotRepository>
-		<repository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
-	</distributionManagement>
 </project>
