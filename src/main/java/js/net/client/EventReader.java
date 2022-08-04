@@ -8,8 +8,8 @@ import java.util.Map;
 import js.json.Json;
 import js.lang.Event;
 import js.lang.KeepAliveEvent;
-import js.log.Log;
-import js.log.LogFactory;
+import com.jslib.api.log.Log;
+import com.jslib.api.log.LogFactory;
 import js.util.Classes;
 import js.util.Files;
 

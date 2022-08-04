@@ -183,7 +183,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		assertEquals("http://localhost/test/js/test/Class/method.rmi", connection.getURL().toExternalForm());
 		assertEquals("POST", connection.getRequestMethod());
 		assertEquals("text/xml; charset=UTF-8", connection.getRequestContentType());
-		assertEquals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<root></root>", connection.getRequestBody());
+		assertEquals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<root></root>\r\n", connection.getRequestBody());
 	}
 
 	public void testMixed() throws Throwable {
@@ -220,7 +220,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 				"Content-Type: text/xml; charset=UTF-8\r\n" + //
 				"\r\n" + //
 				"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" + //
-				"<root></root>\r\n" + //
+				"<root></root>\r\n\r\n" + //
 				"--%1$s\r\n" + //
 				"Content-Disposition: form-data; name=\"2\"\r\n" + //
 				"Content-Type: application/octet-stream\r\n" + //

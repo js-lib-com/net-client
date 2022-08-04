@@ -4,8 +4,8 @@ import java.net.HttpURLConnection;
 
 import js.dom.Document;
 import js.io.StreamHandler;
-import js.log.Log;
-import js.log.LogFactory;
+import com.jslib.api.log.Log;
+import com.jslib.api.log.LogFactory;
 import js.util.Params;
 
 /**

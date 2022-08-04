@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
+import org.xml.sax.SAXException;
+
 import js.dom.DocumentBuilder;
 import js.util.Classes;
 
@@ -18,6 +20,10 @@ final class XmlValueReader implements ValueReader {
 	@Override
 	public Object read(InputStream inputStream, Type returnType) throws IOException {
 		DocumentBuilder builder = Classes.loadService(DocumentBuilder.class);
-		return builder.loadXML(inputStream);
+		try {
+			return builder.loadXML(inputStream);
+		} catch (SAXException e) {
+			throw new IOException(String.format("Fail to load XML. Root cause: %s", e.getMessage()));
+		}
 	}
 }
