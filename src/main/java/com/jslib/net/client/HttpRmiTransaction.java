@@ -324,7 +324,7 @@ public class HttpRmiTransaction {
 	 * @throws Exception all exceptions are bubbled up.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> T exec(final Consumer<T> callback) throws Throwable {
+	public <T> T exec(final Consumer<T> callback) throws Exception {
 		// Build request URL from remote class implementation URL and remote method name then delegate connection factory to
 		// actually open the connection. Connection is stored into {@link #connection}.
 
@@ -365,7 +365,7 @@ public class HttpRmiTransaction {
 	 * @return remote value.
 	 * @throws Exception any exception on transaction processing is bubbled up to caller.
 	 */
-	private Object exec() throws Throwable {
+	private Object exec() throws Exception {
 		boolean exception = false;
 		try {
 			return exec(connection);
@@ -387,7 +387,7 @@ public class HttpRmiTransaction {
 	 * @return remote method return value.
 	 * @throws Exception if transaction fails for any reasons be it client local, networking or remote process.
 	 */
-	private Object exec(HttpURLConnection connection) throws Throwable {
+	private Object exec(HttpURLConnection connection) throws Exception {
 		connection.setConnectTimeout(connectionTimeout);
 		connection.setReadTimeout(readTimeout);
 
@@ -475,7 +475,7 @@ public class HttpRmiTransaction {
 	 * @throws BusinessException if server side logic detects that a business constrain is broken.
 	 * @throws Exception internal server error is due to a checked exception present into remote method signature.
 	 */
-	private void onError(int statusCode) throws Throwable {
+	private void onError(int statusCode) throws Exception {
 		// if status code is [200 300) range response body is accessible via getInputStream
 		// otherwise getErrorStream should be used
 		// trying to use getInputStream for status codes not in [200 300) range will rise IOException
@@ -514,20 +514,20 @@ public class HttpRmiTransaction {
 
 				// if remote exception is an exception declared by method signature we throw it in this virtual machine
 				if (exceptions.contains(getRemoteExceptionCause(remoteException))) {
-					Class<? extends Throwable> remoteExceptionType = Classes.forOptionalName(remoteException.getType());
+					Class<? extends Exception> remoteExceptionType = Classes.forOptionalName(remoteException.getType());
 					if (remoteExceptionType != null) {
 						String message = remoteException.getMessage();
-						Throwable throwable = null;
+						Exception exception = null;
 						if (message != null) {
-							throwable = Classes.newOptionalInstance(remoteExceptionType, message);
+							exception = Classes.newOptionalInstance(remoteExceptionType, message);
 						}
-						if (throwable == null) {
-							throwable = Classes.newInstance(remoteExceptionType);
+						if (exception == null) {
+							exception = Classes.newInstance(remoteExceptionType);
 						}
 						for (Map.Entry<String, Object> property : remoteException.getProperties().entrySet()) {
-							Classes.setFieldValue(throwable, property.getKey(), property.getValue());
+							Classes.setFieldValue(exception, property.getKey(), property.getValue());
 						}
-						throw throwable;
+						throw exception;
 					}
 				}
 
