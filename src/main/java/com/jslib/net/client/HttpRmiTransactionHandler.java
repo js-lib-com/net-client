@@ -6,10 +6,10 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import com.jslib.lang.BugError;
-import com.jslib.lang.Callback;
-import com.jslib.util.Types;
+import com.jslib.rmi.InvocationPropertiesProvider;
 
 /**
  * Java Proxy invocation handler responsible for remote method invocation transaction execution. Proxy class bytecode is
@@ -44,30 +44,27 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 	/** Magic name for client packages used by service providers. */
 	private static final String CLIENT_PACKAGE_SUFIX = ".client";
 
-	private static final Callback<Object> VOID_CALLBACK = new Callback<Object>() {
-		public void handle(Object value) {
-		}
-	};
-
 	private final ConnectionFactory connectionFactory;
 
 	/** URL of the remote class implementation. */
 	private final String implementationURL;
 
+	private final InvocationPropertiesProvider propertiesProvider;
+	
 	/**
 	 * Construct transaction handler for a given remote class, identified by its implementation URL. Implementation URL is the
 	 * context URL from the target host where remote class is deployed.
 	 * 
 	 * @param implementationURL URL of the remote class implementation.
 	 */
-	public HttpRmiTransactionHandler(String implementationURL) {
-		this.connectionFactory = null;
-		this.implementationURL = implementationURL;
+	public HttpRmiTransactionHandler(String implementationURL, InvocationPropertiesProvider... propertiesProvider) {
+		this(null, implementationURL, propertiesProvider);
 	}
 
-	public HttpRmiTransactionHandler(ConnectionFactory connectionFactory, String implementationURL) {
+	public HttpRmiTransactionHandler(ConnectionFactory connectionFactory, String implementationURL, InvocationPropertiesProvider... propertiesProvider) {
 		this.connectionFactory = connectionFactory;
 		this.implementationURL = implementationURL;
+		this.propertiesProvider = propertiesProvider.length == 1? propertiesProvider[0]: InvocationPropertiesProvider.EMPTY;
 	}
 
 	/**
@@ -86,9 +83,11 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public Object invoke(Object proxy, Method method, Object[] arguments) throws Exception {
+	public Object invoke(Object proxy, Method method, Object[] arguments) throws Throwable {
 		// do not try to reuse remote invocation transaction; creates a new transaction instance for every invocation
 		HttpRmiTransaction transaction = createTransaction(connectionFactory, implementationURL);
+		
+		propertiesProvider.get().forEach((name, value) -> transaction.setHeader(name, (String)value));
 
 		String declaringClassName = method.getDeclaringClass().getCanonicalName();
 		String packageName = method.getDeclaringClass().getPackage().getName();
@@ -99,7 +98,7 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 		transaction.setMethod(declaringClassName, method.getName());
 
 		Type returnType = method.getGenericReturnType();
-		Callback<Object> callback = null;
+		Consumer<Object> callback = null;
 
 		// excerpt from Java API regarding this method third argument:
 		// arguments - an array of objects containing the values of the arguments passed in the method invocation
@@ -110,7 +109,7 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 			List<Object> remoteArguments = new ArrayList<Object>();
 
 			for (int i = 0; i < arguments.length; ++i) {
-				if (!(arguments[i] instanceof Callback)) {
+				if (!(arguments[i] instanceof Consumer)) {
 					remoteArguments.add(arguments[i]);
 					continue;
 				}
@@ -118,7 +117,7 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 				// here argument is the callback
 				// it is expected to have a single callback; if more, uses the last one
 				assert callback == null;
-				callback = (Callback<Object>) arguments[i];
+				callback = (Consumer<Object>) arguments[i];
 
 				// if callback is present uses its parameterized type as return type for the remote method
 				// extract type parameter from actual argument instance, not from method signature that can contain wild card
@@ -137,22 +136,8 @@ public final class HttpRmiTransactionHandler implements InvocationHandler {
 		transaction.setReturnType(returnType);
 		transaction.setExceptions(method.getExceptionTypes());
 
-		if (transaction.isSynchronousForced() || (!Types.isVoid(returnType) && callback == null)) {
-			// force synchronous execution if specialized transaction request synchronous mode
-			// also execute synchronous if remote method is not void but there is no callback
-			// uses null callback to force synchronous
-			return transaction.exec(null);
-		}
-
-		// usually user code does not provide callbacks when invoking void methods, although it may happen to want to know when
-		// execution is complete in order, for example, to chain another
-		// anyway, if no callback is provided uses the default void callback
-		if (callback == null) {
-			callback = VOID_CALLBACK;
-		}
-
-		transaction.exec(callback);
-		return null;
+		// at this point callback can be null, in which case transaction is executed synchronously
+		return transaction.exec(callback);
 	}
 
 	private static HttpRmiTransaction createTransaction(ConnectionFactory connectionFactory, String implementationURL) {

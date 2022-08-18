@@ -15,11 +15,6 @@ import com.jslib.api.dom.Document;
  */
 final class XmlArgumentsWriter implements ArgumentsWriter {
 	@Override
-	public boolean isSynchronous() {
-		return false;
-	}
-
-	@Override
 	public String getContentType() {
 		return "text/xml; charset=UTF-8";
 	}

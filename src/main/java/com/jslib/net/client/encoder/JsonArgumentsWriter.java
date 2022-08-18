@@ -23,11 +23,6 @@ final class JsonArgumentsWriter implements ArgumentsWriter {
 	}
 
 	@Override
-	public boolean isSynchronous() {
-		return false;
-	}
-
-	@Override
 	public String getContentType() {
 		return "application/json";
 	}

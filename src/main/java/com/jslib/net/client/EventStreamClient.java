@@ -123,7 +123,7 @@ public class EventStreamClient implements Runnable, AutoCloseable {
 	 * @throws IOException if event stream connection fails including connection timeout.
 	 */
 	public void open(URL eventStreamURL) throws IOException {
-		log.info("Connecting to event stream |%s|.", eventStreamURL);
+		log.info("Connecting to event stream |{event_stream_uri}|.", eventStreamURL);
 		connection = (HttpURLConnection) eventStreamURL.openConnection();
 		connection.setConnectTimeout(CONNECTION_TIMEOUT);
 		connection.setReadTimeout(READ_TIMEOUT);
@@ -198,7 +198,7 @@ public class EventStreamClient implements Runnable, AutoCloseable {
 
 	@Override
 	public void run() {
-		log.debug("Start event stream |%s| client on thread |%s|.", connection.getURL(), thread);
+		log.debug("Start event stream |{event_stream_uri}| client on thread |{event_thread}|.", connection.getURL(), thread);
 		synchronized (lock) {
 			lock.notify();
 		}
@@ -214,9 +214,9 @@ public class EventStreamClient implements Runnable, AutoCloseable {
 				callback.accept(event);
 			}
 		} catch (SocketTimeoutException e) {
-			log.error("Event stream |%s read timeout.|", connection.getURL());
+			log.error("Event stream |{event_stream_uri}| read timeout.", connection.getURL());
 		} catch (SocketException e) {
-			log.debug("Event reader closed due to socket exception: %s", e.getMessage());
+			log.debug("Event reader closed due to socket exception: {exception_message}", e.getMessage());
 		} catch (Throwable t) {
 			log.error(t);
 		} finally {
@@ -224,11 +224,11 @@ public class EventStreamClient implements Runnable, AutoCloseable {
 		}
 
 		long connectionTime = System.currentTimeMillis() - connectionStartTimestamp;
-		log.debug("Exit event stream |%s| reader loop. Connection time %d msec.", connection.getURL(), connectionTime);
+		log.debug("Exit event stream |{event_stream_uri}| reader loop. Connection time {active_time} msec.", connection.getURL(), connectionTime);
 
 		synchronized (lock) {
 			lock.notify();
 		}
-		log.debug("Stop event stream |%s| client on thread |%s|.", connection.getURL(), thread);
+		log.debug("Stop event stream |{event_stream_uri}| client on thread |{event_thread}|.", connection.getURL(), thread);
 	}
 }

@@ -173,7 +173,7 @@ public class EventReader {
 				String eventName = eventBuilder.toString();
 				Class<? extends Event> eventClass = mappings.get(eventName);
 				if (eventClass == null) {
-					log.debug("No class registered for event |%s|. Event discarded.", eventName);
+					log.debug("No class registered for event |{event}|. Event discarded.", eventName);
 					state = State.NEW_EVENT;
 					field = Field.NONE;
 					continue EVENT_READ_LOOP;

@@ -12,5 +12,7 @@ import java.lang.reflect.Type;
  * @version draft
  */
 public interface ValueReader {
+	
 	Object read(InputStream inputStream, Type returnType) throws IOException;
+	
 }

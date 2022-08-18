@@ -11,18 +11,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.jslib.api.json.Json;
+import com.jslib.api.log.Log;
+import com.jslib.api.log.LogFactory;
 import com.jslib.lang.AsyncTask;
 import com.jslib.lang.BugError;
-import com.jslib.lang.Callback;
 import com.jslib.net.client.encoder.ArgumentsWriter;
 import com.jslib.net.client.encoder.ClientEncoders;
 import com.jslib.net.client.encoder.ValueReader;
-import com.jslib.api.log.Log;
-import com.jslib.api.log.LogFactory;
 import com.jslib.rmi.BusinessException;
 import com.jslib.rmi.RemoteException;
 import com.jslib.rmi.RmiException;
@@ -39,8 +39,8 @@ import com.jslib.util.Types;
  * <p>
  * Anyway, if service provider does not supply an interface one may need to use this class, see sample code. It is developer
  * responsibility to ensure remote method signature is respected regarding class and method names, arguments order and types and
- * returned value type. Usually HTTP-RMI transaction is executed asynchronous, that is, {@link #exec(com.jslib.lang.Callback)} returns
- * immediately. Anyway, if callback is null transaction is executed synchronously.
+ * returned value type. Usually HTTP-RMI transaction is executed asynchronous, that is, {@link #exec(com.jslib.lang.Callback)}
+ * returns immediately. Anyway, if callback is null transaction is executed synchronously.
  * 
  * <pre>
  * URL implementationURL = new URL(&quot;http://raspberrypi.local/&quot;);
@@ -131,8 +131,12 @@ public class HttpRmiTransaction {
 	/** Response header value for connection close. */
 	private static final String CONNECTION_CLOSE = "close";
 
-	/** Cookies on HTTP-RMI session. A session can span multiple transactions. */
-	private static Map<URL, String> sessionCookies = new HashMap<URL, String>();
+	/**
+	 * Sessions cache stores JSESSIONSID cookies by HTTP-RMI domain name. In this context domain name is considered the
+	 * implementation URL, see {@link #implementationURL}. If a response contains JSESSIONID cookie it is stored in this cache
+	 * using implementation URL as domain name; if there is no session cookie on response takes care to remove the cash entry.
+	 */
+	private static Map<String, String> sessionsCache = new HashMap<>();
 
 	// ----------------------------------------------------
 	// INSTANCE FIELDS
@@ -174,7 +178,7 @@ public class HttpRmiTransaction {
 	private Map<String, String> headers;
 
 	/** User custom exception handler, default to null. */
-	private volatile Callback<Throwable> exceptionHandler;
+	private volatile Consumer<Throwable> exceptionHandler;
 
 	/**
 	 * Protected constructor.
@@ -259,18 +263,6 @@ public class HttpRmiTransaction {
 	}
 
 	/**
-	 * Return true if transaction is forced to work in synchronous mode. As a general rule transaction is executed asynchronous
-	 * if {@link #exec(Callback)} has not null callback. This means <code>exec</code> returns immediately and remote invocation
-	 * results is supplied via callback instance. Anyway, depending on arguments encoder, is possible to force synchronous mode,
-	 * e.g. dealing with stream requires synchronous mode to feed or consume the stream.
-	 * 
-	 * @return this default implementation always returns false.
-	 */
-	boolean isSynchronousForced() {
-		return argumentsWriter != null && argumentsWriter.isSynchronous();
-	}
-
-	/**
 	 * Set method exceptions list. This exceptions list is used by the logic that handle remote exception. It should be
 	 * consistent with remote method signature.
 	 * 
@@ -289,7 +281,7 @@ public class HttpRmiTransaction {
 	 * @param exceptionHandler custom exception handler, not null.
 	 * @throws IllegalArgumentException if <code>exceptionHandler</code> is null.
 	 */
-	public void setExceptionHandler(Callback<Throwable> exceptionHandler) {
+	public void setExceptionHandler(Consumer<Throwable> exceptionHandler) {
 		Params.notNull(exceptionHandler, "Exception handler");
 		this.exceptionHandler = exceptionHandler;
 	}
@@ -332,7 +324,7 @@ public class HttpRmiTransaction {
 	 * @throws Exception all exceptions are bubbled up.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> T exec(final Callback<T> callback) throws Exception {
+	public <T> T exec(final Consumer<T> callback) throws Throwable {
 		// Build request URL from remote class implementation URL and remote method name then delegate connection factory to
 		// actually open the connection. Connection is stored into {@link #connection}.
 
@@ -358,7 +350,7 @@ public class HttpRmiTransaction {
 			protected void onThrowable(Throwable throwable) {
 				super.onThrowable(throwable);
 				if (HttpRmiTransaction.this.exceptionHandler != null) {
-					HttpRmiTransaction.this.exceptionHandler.handle(throwable);
+					HttpRmiTransaction.this.exceptionHandler.accept(throwable);
 				}
 			}
 		};
@@ -373,7 +365,7 @@ public class HttpRmiTransaction {
 	 * @return remote value.
 	 * @throws Exception any exception on transaction processing is bubbled up to caller.
 	 */
-	private Object exec() throws Exception {
+	private Object exec() throws Throwable {
 		boolean exception = false;
 		try {
 			return exec(connection);
@@ -395,7 +387,7 @@ public class HttpRmiTransaction {
 	 * @return remote method return value.
 	 * @throws Exception if transaction fails for any reasons be it client local, networking or remote process.
 	 */
-	private Object exec(HttpURLConnection connection) throws Exception {
+	private Object exec(HttpURLConnection connection) throws Throwable {
 		connection.setConnectTimeout(connectionTimeout);
 		connection.setReadTimeout(readTimeout);
 
@@ -420,8 +412,10 @@ public class HttpRmiTransaction {
 			}
 		}
 
-		String sessionCookie = sessionCookies.get(connection.getURL());
+		String sessionCookie = sessionsCache.get(implementationURL);
 		if (sessionCookie != null) {
+			// sessionCookie is JSESSIONID cookie from HTTP response on a previous HTTP-RMI transaction using the same
+			// implementation URL as domain name
 			connection.setRequestProperty("Cookie", sessionCookie);
 		}
 
@@ -448,7 +442,10 @@ public class HttpRmiTransaction {
 		if (cookies != null) {
 			Matcher matcher = JSESSIONID_PATTERN.matcher(cookies);
 			if (matcher.find()) {
-				sessionCookies.put(connection.getURL(), matcher.group(1));
+				// matcher.group(1) contains JSESSIONSID cookie
+				sessionsCache.put(implementationURL, matcher.group(1));
+			} else {
+				sessionsCache.remove(implementationURL);
 			}
 		}
 
@@ -462,8 +459,7 @@ public class HttpRmiTransaction {
 		ValueReader valueReader = ClientEncoders.getInstance().getValueReader(connection);
 		try {
 			return valueReader.read(connection.getInputStream(), returnType);
-		}
-		catch (SocketException e) {
+		} catch (SocketException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new BugError("Invalid HTTP-RMI transaction with |%s|. Response cannot be parsed to type |%s|. Cause: %s", connection.getURL(), returnType, e);
@@ -479,7 +475,7 @@ public class HttpRmiTransaction {
 	 * @throws BusinessException if server side logic detects that a business constrain is broken.
 	 * @throws Exception internal server error is due to a checked exception present into remote method signature.
 	 */
-	private void onError(int statusCode) throws Exception {
+	private void onError(int statusCode) throws Throwable {
 		// if status code is [200 300) range response body is accessible via getInputStream
 		// otherwise getErrorStream should be used
 		// trying to use getInputStream for status codes not in [200 300) range will rise IOException
@@ -488,7 +484,7 @@ public class HttpRmiTransaction {
 		case SC_FORBIDDEN:
 			// server understood the request but refuses to fulfill it
 			// compared with SC_UNAUTHORIZED, sending authentication will not grant access
-			// common SC_FORBIDDEN condition may be Tomcat filtering by remote address and client IP is not allowed
+			// example of SC_FORBIDDEN condition may be Tomcat filtering by remote address and client IP not allowed
 			throw new RmiException("Server refuses to process request |%s|. Common cause may be Tomcat filtering by remote address and this IP is not allowed.", connection.getURL());
 
 		case SC_UNAUTHORIZED:
@@ -514,33 +510,39 @@ public class HttpRmiTransaction {
 		case SC_INTERNAL_SERVER_ERROR:
 			if (isJSON(connection.getContentType())) {
 				RemoteException remoteException = (RemoteException) readJsonObject(connection.getErrorStream(), RemoteException.class);
-				log.error("HTTP-RMI error on |%s|: %s", connection.getURL(), remoteException);
+				log.error("HTTP-RMI error on |{uri}|: {remote_exception}", connection.getURL(), remoteException);
 
 				// if remote exception is an exception declared by method signature we throw it in this virtual machine
 				if (exceptions.contains(getRemoteExceptionCause(remoteException))) {
-					Class<? extends Throwable> cause = Classes.forOptionalName(remoteException.getCause());
-					if (cause != null) {
+					Class<? extends Throwable> remoteExceptionType = Classes.forOptionalName(remoteException.getType());
+					if (remoteExceptionType != null) {
 						String message = remoteException.getMessage();
-						if (message == null) {
-							throw (Exception) Classes.newInstance(cause);
+						Throwable throwable = null;
+						if (message != null) {
+							throwable = Classes.newOptionalInstance(remoteExceptionType, message);
 						}
-						throw (Exception) Classes.newInstance(cause, remoteException.getMessage());
+						if (throwable == null) {
+							throwable = Classes.newInstance(remoteExceptionType);
+						}
+						for (Map.Entry<String, Object> property : remoteException.getProperties().entrySet()) {
+							Classes.setFieldValue(throwable, property.getKey(), property.getValue());
+						}
+						throw throwable;
 					}
 				}
 
 				// if received remote exception is not listed by method signature replace it with RmiException
 				throw new RmiException(connection.getURL(), remoteException);
 			}
-		}
 
-		final InputStream errorStream = connection.getErrorStream();
-		if (errorStream != null) {
-			String responseDump = Strings.load(errorStream, 100);
-			log.error("HTTP-RMI error on |%s|. Server returned |%d|. Response dump:\r\n\t%s", connection.getURL(), statusCode, responseDump);
-		} else {
-			log.error("HTTP-RMI error on |%s|. Server returned |%d|.", connection.getURL(), statusCode);
+			// remote server internal error and non JSON response, probably and error HTML page
+			log.error("Internal server error on |{uri}|. Response content type {http_type}.", connection.getURL(), connection.getContentType());
+			throw new RmiException("Internal server error on |%s|.", connection.getURL());
+
+		default:
+			log.error("HTTP-RMI error on |{uri}|. Server returned |{http_status}|.", connection.getURL(), statusCode);
+			throw new RmiException("HTTP-RMI error on |%s|. Server returned |%s|.", connection.getURL(), statusCode);
 		}
-		throw new RmiException("HTTP-RMI error on |%s|. Server returned |%d|.", connection.getURL(), statusCode);
 	}
 
 	// ----------------------------------------------------
@@ -586,6 +588,6 @@ public class HttpRmiTransaction {
 	 * @return remote exception cause simple name.
 	 */
 	private static String getRemoteExceptionCause(RemoteException remoteException) {
-		return Strings.last(remoteException.getCause(), '.');
+		return Strings.last(remoteException.getType(), '.');
 	}
 }

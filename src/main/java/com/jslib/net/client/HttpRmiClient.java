@@ -30,7 +30,7 @@ public class HttpRmiClient {
 		transaction.setExceptions(exceptions);
 	}
 
-	public <T> T invoke(String methodName, Object... arguments) throws Exception {
+	public <T> T invoke(String methodName, Object... arguments) throws Throwable {
 		transaction.setMethod(className, methodName);
 		transaction.setArguments(arguments);
 		return transaction.exec(null);

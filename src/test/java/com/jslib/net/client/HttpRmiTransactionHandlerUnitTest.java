@@ -32,7 +32,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 		this.connection = connection;
 	}
 
-	public void testSetObject() throws Exception {
+	public void testSetObject() throws Throwable {
 		factory.responseStatusCode = 204;
 		invoke("setPerson", new Person("Jane Doe", 33));
 		Thread.sleep(500);
@@ -42,7 +42,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 		assertEquals("[{\"name\":\"Jane Doe\",\"age\":33}]", connection.getRequestBody());
 	}
 
-	public void testGetObject() throws Exception {
+	public void testGetObject() throws Throwable {
 		factory.responseStatusCode = 200;
 		factory.responseContentType = "application/json";
 		factory.responseBody = "{\"name\":\"John Doe\",\"age\":54}";
@@ -57,7 +57,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 		assertEquals(54, person.age);
 	}
 
-	public void testDownload() throws Exception {
+	public void testDownload() throws Throwable {
 		factory.responseStatusCode = 200;
 		factory.responseContentType = "application/octet-stream";
 		factory.responseBody = "download text";
@@ -72,7 +72,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 		assertEquals("download text", outputStream.toString());
 	}
 
-	public void testUpload() throws Exception {
+	public void testUpload() throws Throwable {
 		factory.responseStatusCode = 204;
 
 		invoke("upload", new StreamHandler<OutputStream>(OutputStream.class) {
@@ -88,7 +88,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 		assertEquals("upload text", connection.getRequestBody());
 	}
 
-	public void testForceSynchronous() throws Exception {
+	public void testForceSynchronous() throws Throwable {
 		factory.responseStatusCode = 204;
 
 		final Thread invokerThread = Thread.currentThread();
@@ -106,7 +106,7 @@ public class HttpRmiTransactionHandlerUnitTest extends TestCase implements OpenC
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> T invoke(String methodName, Object... arguments) throws Exception {
+	private <T> T invoke(String methodName, Object... arguments) throws Throwable {
 		HttpRmiTransactionHandler handler = new HttpRmiTransactionHandler(factory, "http://localhost/");
 		Method method = Service.class.getMethod(methodName, Classes.getParameterTypes(arguments));
 		Object value = handler.invoke(null, method, arguments);

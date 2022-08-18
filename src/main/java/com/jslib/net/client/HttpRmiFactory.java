@@ -2,6 +2,7 @@ package com.jslib.net.client;
 
 import java.lang.reflect.Proxy;
 
+import com.jslib.rmi.InvocationPropertiesProvider;
 import com.jslib.rmi.RemoteFactory;
 import com.jslib.util.Params;
 
@@ -28,10 +29,11 @@ public final class HttpRmiFactory implements RemoteFactory {
 	 * @throws IllegalArgumentException if <code>interfaceClass</code> is null.
 	 */
 	@SuppressWarnings("unchecked")
-	public <I> I getRemoteInstance(Class<? super I> interfaceClass, String implementationURL) {
+	@Override
+	public <I> I getRemoteInstance(Class<? super I> interfaceClass, String implementationURL, InvocationPropertiesProvider... propertiesProvider) {
 		Params.notNull(implementationURL, "Implementation URL");
 		Params.notNull(interfaceClass, "Interface class");
 		// at this point we know that interface class is a super of returned instance class so is safe to suppress warning
-		return (I) Proxy.newProxyInstance(interfaceClass.getClassLoader(), new Class<?>[] { interfaceClass }, new HttpRmiTransactionHandler(implementationURL));
+		return (I) Proxy.newProxyInstance(interfaceClass.getClassLoader(), new Class<?>[] { interfaceClass }, new HttpRmiTransactionHandler(implementationURL, propertiesProvider));
 	}
 }

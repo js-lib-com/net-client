@@ -15,11 +15,6 @@ import com.jslib.util.Files;
  */
 final class StreamArgumentsWriter implements ArgumentsWriter {
 	@Override
-	public boolean isSynchronous() {
-		return true;
-	}
-
-	@Override
 	public String getContentType() {
 		return "application/octet-stream";
 	}

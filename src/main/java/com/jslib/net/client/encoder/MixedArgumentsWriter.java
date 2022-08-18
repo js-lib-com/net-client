@@ -50,11 +50,6 @@ final class MixedArgumentsWriter implements ArgumentsWriter {
 	}
 
 	@Override
-	public boolean isSynchronous() {
-		return true;
-	}
-
-	@Override
 	public String getContentType() {
 		return String.format("multipart/mixed; boundary=\"%s\"", this.boundary);
 	}

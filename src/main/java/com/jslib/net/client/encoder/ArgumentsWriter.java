@@ -11,7 +11,6 @@ import java.io.OutputStream;
  * @version draft
  */
 public interface ArgumentsWriter {
-	boolean isSynchronous();
 
 	/**
 	 * Get content type choose by factory method to encode arguments.
@@ -28,4 +27,5 @@ public interface ArgumentsWriter {
 	 * @throws IOException if output stream write fails.
 	 */
 	void write(OutputStream outputStream, Object[] arguments) throws IOException;
+	
 }

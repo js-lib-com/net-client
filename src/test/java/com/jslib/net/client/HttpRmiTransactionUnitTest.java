@@ -252,8 +252,8 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"cause\":\"java.io.IOException\",\"message\":\"server exception\"}");
-		} catch (IOException e) {
+			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"server exception\"}");
+		} catch (Exception e) {
 			assertEquals("server exception", e.getMessage());
 			return;
 		}
@@ -327,8 +327,8 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"cause\":\"java.io.IOException\",\"message\":\"Error message.\"}");
-		} catch (IOException e) {
+			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"Error message.\"}");
+		} catch (Exception e) {
 			if (e.getMessage().equals("Error message.")) {
 				return;
 			}
@@ -343,7 +343,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setReturnType(Boolean.class);
 
 		try {
-			exercise(500, "application/json", "{\"cause\":\"java.io.IOException\",\"message\":\"Error message.\"}");
+			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"Error message.\"}");
 		} catch (Exception e) {
 			assertTrue(e instanceof RmiException);
 			assertEquals("HTTP-RMI server execution error on |http://localhost/test/js/test/Class/method.rmi|: java.io.IOException: Error message.", e.getMessage());
@@ -359,7 +359,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		try {
 			exercise(567, "text/plain; charset=UTF-8", "Unknown code.");
 		} catch (RmiException e) {
-			if (e.getMessage().startsWith("HTTP-RMI error on |http://localhost/test/js/test/Class/method.rmi|. Server returned |567|.")) {
+			if (e.getMessage().startsWith("HTTP-RMI error on")) {
 				return;
 			}
 		}
