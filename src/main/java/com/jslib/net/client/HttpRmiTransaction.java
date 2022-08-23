@@ -29,7 +29,6 @@ import com.jslib.rmi.RmiException;
 import com.jslib.util.Classes;
 import com.jslib.util.Files;
 import com.jslib.util.Params;
-import com.jslib.util.Strings;
 import com.jslib.util.Types;
 
 /**
@@ -141,6 +140,8 @@ public class HttpRmiTransaction {
 	// ----------------------------------------------------
 	// INSTANCE FIELDS
 
+	private final Json json;
+
 	/** HTTP connection factory for both secure and non secure transactions. */
 	private final ConnectionFactory connectionFactory;
 
@@ -189,6 +190,7 @@ public class HttpRmiTransaction {
 	 */
 	public HttpRmiTransaction(ConnectionFactory connectionFactory, String implementationURL) {
 		Params.notNullOrEmpty(implementationURL, "Implementation URL");
+		this.json = Classes.loadService(Json.class);
 		this.connectionFactory = connectionFactory;
 		this.implementationURL = implementationURL;
 	}
@@ -475,6 +477,7 @@ public class HttpRmiTransaction {
 	 * @throws BusinessException if server side logic detects that a business constrain is broken.
 	 * @throws Exception internal server error is due to a checked exception present into remote method signature.
 	 */
+	@SuppressWarnings("unchecked")
 	private void onError(int statusCode) throws Exception {
 		// if status code is [200 300) range response body is accessible via getInputStream
 		// otherwise getErrorStream should be used
@@ -512,22 +515,19 @@ public class HttpRmiTransaction {
 				RemoteException remoteException = (RemoteException) readJsonObject(connection.getErrorStream(), RemoteException.class);
 				log.error("HTTP-RMI error on |{uri}|: {remote_exception}", connection.getURL(), remoteException);
 
-				// if remote exception is an exception declared by method signature we throw it in this virtual machine
-				if (exceptions.contains(getRemoteExceptionCause(remoteException))) {
-					Class<? extends Exception> remoteExceptionType = Classes.forOptionalName(remoteException.getType());
-					if (remoteExceptionType != null) {
-						String message = remoteException.getMessage();
-						Exception exception = null;
-						if (message != null) {
-							exception = Classes.newOptionalInstance(remoteExceptionType, message);
-						}
-						if (exception == null) {
-							exception = Classes.newInstance(remoteExceptionType);
-						}
-						for (Map.Entry<String, Object> property : remoteException.getProperties().entrySet()) {
-							Classes.setFieldValue(exception, property.getKey(), property.getValue());
-						}
-						throw exception;
+				// if remote exception cause is an exception declared by method signature we throw it in this virtual machine
+				Exception cause = remoteException.getCause();
+				Class<? extends Exception> causeClass = cause.getClass();
+				while(causeClass != null) {
+					if (exceptions.contains(causeClass.getSimpleName())) {
+						throw cause;
+					}
+					Class<?> superClass = causeClass.getSuperclass();
+					if(Types.isKindOf(superClass, Exception.class)) {
+						causeClass = (Class<? extends Exception>) superClass; 
+					}
+					else {
+						causeClass = null;
 					}
 				}
 
@@ -567,27 +567,9 @@ public class HttpRmiTransaction {
 	 * @return object instance of requested type.
 	 * @throws IOException if stream reading or JSON parsing fails.
 	 */
-	private static Object readJsonObject(InputStream stream, Type type) throws IOException {
-		BufferedReader reader = null;
-		Json json = Classes.loadService(Json.class);
-		try {
-			reader = Files.createBufferedReader(stream);
+	private Object readJsonObject(InputStream stream, Type type) throws IOException {
+		try (BufferedReader reader = Files.createBufferedReader(stream)) {
 			return json.parse(reader, type);
-		} finally {
-			// do not use Files.close because we want to throw IOException is reader close fails
-			if (reader != null) {
-				reader.close();
-			}
 		}
-	}
-
-	/**
-	 * Get the class simple name of the remote exception cause.
-	 * 
-	 * @param remoteException remote exception instance.
-	 * @return remote exception cause simple name.
-	 */
-	private static String getRemoteExceptionCause(RemoteException remoteException) {
-		return Strings.last(remoteException.getType(), '.');
 	}
 }

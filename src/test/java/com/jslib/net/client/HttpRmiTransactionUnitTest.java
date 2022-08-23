@@ -14,7 +14,6 @@ import com.jslib.net.client.fixture.MockConnectionFactory.OpenConnectionListener
 import com.jslib.net.client.fixture.MockHttpURLConnection;
 import com.jslib.net.client.fixture.Notification;
 import com.jslib.rmi.BusinessException;
-import com.jslib.rmi.RemoteException;
 import com.jslib.rmi.RmiException;
 import com.jslib.util.Classes;
 
@@ -42,18 +41,12 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 
 	public void testReadJsonObject() throws Exception {
 		String json = "{\"id\":1964,\"text\":\"message\"}";
-		Notification notification = Classes.invoke(HttpRmiTransaction.class, "readJsonObject", new ByteArrayInputStream(json.getBytes()), Notification.class);
+		HttpRmiTransaction transaction = HttpRmiTransaction.getInstance("http://localhost/");
+		Notification notification = Classes.invoke(transaction, "readJsonObject", new ByteArrayInputStream(json.getBytes()), Notification.class);
 		assertNotNull(notification);
 		assertEquals(1964, notification.id);
 		assertEquals("message", notification.text);
 		assertNull(notification.timestamp);
-	}
-
-	public void testGetRemoteExceptionCause() throws Exception {
-		RemoteException remoteException = new RemoteException(new IOException("Exception message."));
-		String cause = Classes.invoke(HttpRmiTransaction.class, "getRemoteExceptionCause", remoteException);
-		assertNotNull(cause);
-		assertEquals("IOException", cause);
 	}
 
 	/** Set method should initialize internal method path. */
@@ -252,7 +245,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"server exception\"}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"server exception\"}]}");
 		} catch (Exception e) {
 			assertEquals("server exception", e.getMessage());
 			return;
@@ -327,7 +320,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"Error message.\"}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"Error message.\"}]}");
 		} catch (Exception e) {
 			if (e.getMessage().equals("Error message.")) {
 				return;
@@ -343,7 +336,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setReturnType(Boolean.class);
 
 		try {
-			exercise(500, "application/json", "{\"type\":\"java.io.IOException\",\"message\":\"Error message.\"}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"Error message.\"}]}");
 		} catch (Exception e) {
 			assertTrue(e instanceof RmiException);
 			assertEquals("HTTP-RMI server execution error on |http://localhost/test/js/test/Class/method.rmi|: java.io.IOException: Error message.", e.getMessage());
