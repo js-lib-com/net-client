@@ -81,7 +81,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.10.1</version>
 				<configuration>
-					<release>11</release>
+					<release>8</release>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -141,6 +141,7 @@
 			<build>
 				<defaultGoal>deploy</defaultGoal>
 				<plugins>
+<!--
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
@@ -155,6 +156,7 @@
 							</execution>
 						</executions>
 					</plugin>
+-->					
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-deploy-plugin</artifactId>
