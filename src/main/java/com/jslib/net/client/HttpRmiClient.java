@@ -22,6 +22,18 @@ public class HttpRmiClient {
 		this.className = className;
 	}
 
+	public void setHttpHeader(String name, String value) {
+		transaction.setHeader(name, value);
+	}
+
+	public void setConnectionTimeout(int connectionTimeout) {
+		transaction.setConnectionTimeout(connectionTimeout);
+	}
+
+	public void setResponseTimeout(int responseTimeout) {
+		transaction.setReadTimeout(responseTimeout);
+	}
+
 	public void setReturnType(Type returnType) {
 		transaction.setReturnType(returnType);
 	}
@@ -32,7 +44,9 @@ public class HttpRmiClient {
 
 	public <T> T invoke(String methodName, Object... arguments) throws Exception {
 		transaction.setMethod(className, methodName);
-		transaction.setArguments(arguments);
+		if (arguments.length != 0) {
+			transaction.setArguments(arguments);
+		}
 		return transaction.exec(null);
 	}
 
