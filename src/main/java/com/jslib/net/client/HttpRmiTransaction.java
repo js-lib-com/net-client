@@ -372,7 +372,7 @@ public class HttpRmiTransaction {
 		try {
 			return exec(connection);
 		} catch (Throwable t) {
-			log.dump(String.format("Error processing HTTP-RMI |%s|.", connection.getURL()), t);
+			log.dump(String.format("Error processing HTTP-RMI %s.", connection.getURL()), t);
 			exception = true;
 			throw t;
 		} finally {
@@ -455,7 +455,7 @@ public class HttpRmiTransaction {
 			return null;
 		}
 		if (!Types.isVoid(returnType) && connection.getContentLength() == 0) {
-			throw new BugError("Invalid HTTP-RMI transaction with |%s|. Expect return value of type |%s| but got empty response.", connection.getURL(), returnType);
+			throw new BugError("Invalid HTTP-RMI transaction with %s. Expect return value of type %s but got empty response.", connection.getURL(), returnType);
 		}
 
 		ValueReader valueReader = ClientEncoders.getInstance().getValueReader(connection);
@@ -464,7 +464,7 @@ public class HttpRmiTransaction {
 		} catch (SocketException e) {
 			throw e;
 		} catch (IOException e) {
-			throw new BugError("Invalid HTTP-RMI transaction with |%s|. Response cannot be parsed to type |%s|. Cause: %s", connection.getURL(), returnType, e);
+			throw new BugError("Invalid HTTP-RMI transaction with %s. Response cannot be parsed to type %s. Cause: %s", connection.getURL(), returnType, e);
 		}
 	}
 
@@ -487,20 +487,20 @@ public class HttpRmiTransaction {
 			// server understood the request but refuses to fulfill it
 			// compared with SC_UNAUTHORIZED, sending authentication will not grant access
 			// example of SC_FORBIDDEN condition may be Tomcat filtering by remote address and client IP not allowed
-			throw new RmiException("Server refuses to process request |%s|. Common cause may be Tomcat filtering by remote address and this IP is not allowed.", connection.getURL());
+			throw new RmiException("Server refuses to process request %s. Common cause may be Tomcat filtering by remote address and this IP is not allowed.", connection.getURL());
 
 		case SC_UNAUTHORIZED:
-			throw new RmiException("Attempt to access private remote method |%s| without authorization.", connection.getURL());
+			throw new RmiException("Attempt to access private remote method %s without authorization.", connection.getURL());
 
 		case SC_NOT_FOUND:
 			// not found may occur if front end Apache HTTP server does not recognize the protocol, e.g. trying to access
 			// securely a
 			// public method or because of misspelled extension; also virtual host configuration for remote context may be wrong
-			throw new RmiException("Method |%s| not found. Check URL spelling, protocol unmatched or unrecognized extension.", connection.getURL());
+			throw new RmiException("Method %s not found. Check URL spelling, protocol unmatched or unrecognized extension.", connection.getURL());
 
 		case SC_SERVICE_UNAVAILABLE:
 			// front end HTTP server is running but application server is down; front end server responds with 503
-			throw new RmiException("Front-end HTTP server is up but back-end is down. HTTP-RMI transaction |%s| aborted.", connection.getURL());
+			throw new RmiException("Front-end HTTP server is up but back-end is down. HTTP-RMI transaction %s aborted.", connection.getURL());
 
 		case SC_BAD_REQUEST:
 			if (isJSON(connection.getContentType())) {
@@ -515,29 +515,8 @@ public class HttpRmiTransaction {
 				log.error("HTTP-RMI error on {http_url}: {}", connection.getURL(), remoteExceptionContext);
 
 				// if remote exception is an exception declared by method signature we throw it in this Java runtime
-				Throwable exception = null;
-				Class<? extends Throwable> exceptionClass = Classes.forOptionalName(remoteExceptionContext.getExceptionClass());
-				if (exceptionClass != null && exceptions.contains(exceptionClass.getSimpleName())) {
-					if (remoteExceptionContext.getExceptionMessage() != null) {
-						if (remoteExceptionContext.getCauseClass() != null) {
-							Class<? extends Throwable> causeClass = Classes.forOptionalName(remoteExceptionContext.getCauseClass());
-							if (causeClass != null) {
-								Throwable cause = null;
-								if (remoteExceptionContext.getCauseMessage() != null) {
-									cause = Classes.newInstance(causeClass, remoteExceptionContext.getCauseMessage());
-								} else {
-									cause = Classes.newInstance(causeClass);
-								}
-								exception = Classes.newInstance(exceptionClass, remoteExceptionContext.getExceptionMessage(), cause);
-							}
-						} else {
-							exception = Classes.newInstance(exceptionClass, remoteExceptionContext.getExceptionMessage());
-						}
-					} else {
-						exception = Classes.newInstance(exceptionClass);
-					}
-				}
-				if (exception != null) {
+				Throwable exception = remoteExceptionContext.getException();
+				if (exception != null && exceptions.contains(exception.getClass().getSimpleName())) {
 					throw exception;
 				}
 
@@ -547,11 +526,11 @@ public class HttpRmiTransaction {
 
 			// remote server internal error and non JSON response, probably and error HTML page
 			log.error("Internal server error on {http_url}. Response content type {http_type}.", connection.getURL(), connection.getContentType());
-			throw new RmiException("Internal server error on |%s|.", connection.getURL());
+			throw new RmiException("Internal server error on %s.", connection.getURL());
 
 		default:
 			log.error("HTTP-RMI error on {http_url}. Server returned {http_status}.", connection.getURL(), statusCode);
-			throw new RmiException("HTTP-RMI error on |%s|. Server returned |%s|.", connection.getURL(), statusCode);
+			throw new RmiException("HTTP-RMI error on %s. Server returned %s.", connection.getURL(), statusCode);
 		}
 	}
 
