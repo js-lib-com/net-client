@@ -245,7 +245,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"server exception\"}]}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"exceptionMessage\":\"server exception\"}");
 		} catch (Exception e) {
 			assertEquals("server exception", e.getMessage());
 			return;
@@ -320,7 +320,7 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setExceptions(new Class<?>[] { IOException.class });
 
 		try {
-			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"Error message.\"}]}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"exceptionMessage\":\"Error message.\"}");
 		} catch (Exception e) {
 			if (e.getMessage().equals("Error message.")) {
 				return;
@@ -336,10 +336,10 @@ public class HttpRmiTransactionUnitTest extends TestCase implements OpenConnecti
 		transaction.setReturnType(Boolean.class);
 
 		try {
-			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"constructorArguments\":[{\"type\":\"java.lang.String\",\"value\":\"Error message.\"}]}");
+			exercise(500, "application/json", "{\"exceptionClass\":\"java.io.IOException\",\"exceptionMessage\":\"Error message.\"}");
 		} catch (Exception e) {
 			assertTrue(e instanceof RmiException);
-			assertEquals("HTTP-RMI server execution error on |http://localhost/test/js/test/Class/method.rmi|: java.io.IOException: Error message.", e.getMessage());
+			assertEquals("HTTP-RMI server execution error on |http://localhost/test/js/test/Class/method.rmi|: java.io.IOException:Error message.", e.getMessage());
 			return;
 		}
 		fail("Unchecked remote exception should rise RMI exception.");

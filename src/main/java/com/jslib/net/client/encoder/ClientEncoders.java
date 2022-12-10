@@ -89,7 +89,7 @@ public final class ClientEncoders {
 				return new XmlValueReader();
 			}
 		}
-		log.error("Unsupported content type |{http_type}| for HTTP-RMI response from |{uri}|.", contentType, connection.getURL());
+		log.error("Unsupported content type |{http_type}| for HTTP-RMI response from {http_url}.", contentType, connection.getURL());
 		return new UnsupportedContentTypeValueReader();
 	}
 }

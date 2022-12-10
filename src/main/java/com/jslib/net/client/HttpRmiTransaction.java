@@ -24,7 +24,7 @@ import com.jslib.net.client.encoder.ArgumentsWriter;
 import com.jslib.net.client.encoder.ClientEncoders;
 import com.jslib.net.client.encoder.ValueReader;
 import com.jslib.rmi.BusinessException;
-import com.jslib.rmi.RemoteException;
+import com.jslib.rmi.RemoteExceptionContext;
 import com.jslib.rmi.RmiException;
 import com.jslib.util.Classes;
 import com.jslib.util.Files;
@@ -326,7 +326,7 @@ public class HttpRmiTransaction {
 	 * @throws Exception all exceptions are bubbled up.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> T exec(final Consumer<T> callback) throws Exception {
+	public <T> T exec(final Consumer<T> callback) throws Throwable {
 		// Build request URL from remote class implementation URL and remote method name then delegate connection factory to
 		// actually open the connection. Connection is stored into {@link #connection}.
 
@@ -367,7 +367,7 @@ public class HttpRmiTransaction {
 	 * @return remote value.
 	 * @throws Exception any exception on transaction processing is bubbled up to caller.
 	 */
-	private Object exec() throws Exception {
+	private Object exec() throws Throwable {
 		boolean exception = false;
 		try {
 			return exec(connection);
@@ -389,7 +389,7 @@ public class HttpRmiTransaction {
 	 * @return remote method return value.
 	 * @throws Exception if transaction fails for any reasons be it client local, networking or remote process.
 	 */
-	private Object exec(HttpURLConnection connection) throws Exception {
+	private Object exec(HttpURLConnection connection) throws Throwable {
 		connection.setConnectTimeout(connectionTimeout);
 		connection.setReadTimeout(readTimeout);
 
@@ -477,8 +477,7 @@ public class HttpRmiTransaction {
 	 * @throws BusinessException if server side logic detects that a business constrain is broken.
 	 * @throws Exception internal server error is due to a checked exception present into remote method signature.
 	 */
-	@SuppressWarnings("unchecked")
-	private void onError(int statusCode) throws Exception {
+	private void onError(int statusCode) throws Throwable {
 		// if status code is [200 300) range response body is accessible via getInputStream
 		// otherwise getErrorStream should be used
 		// trying to use getInputStream for status codes not in [200 300) range will rise IOException
@@ -506,41 +505,52 @@ public class HttpRmiTransaction {
 		case SC_BAD_REQUEST:
 			if (isJSON(connection.getContentType())) {
 				// business constrain not satisfied
-				throw (BusinessException) readJsonObject(connection.getErrorStream(), BusinessException.class);
+				throw readJsonObject(connection.getErrorStream(), BusinessException.class);
 			}
 			break;
 
 		case SC_INTERNAL_SERVER_ERROR:
 			if (isJSON(connection.getContentType())) {
-				RemoteException remoteException = (RemoteException) readJsonObject(connection.getErrorStream(), RemoteException.class);
-				log.error("HTTP-RMI error on |{uri}|: {remote_exception}", connection.getURL(), remoteException);
+				RemoteExceptionContext remoteExceptionContext = readJsonObject(connection.getErrorStream(), RemoteExceptionContext.class);
+				log.error("HTTP-RMI error on {http_url}: {}", connection.getURL(), remoteExceptionContext);
 
-				// if remote exception cause is an exception declared by method signature we throw it in this virtual machine
-				Exception cause = remoteException.getCause();
-				Class<? extends Exception> causeClass = cause.getClass();
-				while(causeClass != null) {
-					if (exceptions.contains(causeClass.getSimpleName())) {
-						throw cause;
+				// if remote exception is an exception declared by method signature we throw it in this Java runtime
+				Throwable exception = null;
+				Class<? extends Throwable> exceptionClass = Classes.forOptionalName(remoteExceptionContext.getExceptionClass());
+				if (exceptionClass != null && exceptions.contains(exceptionClass.getSimpleName())) {
+					if (remoteExceptionContext.getExceptionMessage() != null) {
+						if (remoteExceptionContext.getCauseClass() != null) {
+							Class<? extends Throwable> causeClass = Classes.forOptionalName(remoteExceptionContext.getCauseClass());
+							if (causeClass != null) {
+								Throwable cause = null;
+								if (remoteExceptionContext.getCauseMessage() != null) {
+									cause = Classes.newInstance(causeClass, remoteExceptionContext.getCauseMessage());
+								} else {
+									cause = Classes.newInstance(causeClass);
+								}
+								exception = Classes.newInstance(exceptionClass, remoteExceptionContext.getExceptionMessage(), cause);
+							}
+						} else {
+							exception = Classes.newInstance(exceptionClass, remoteExceptionContext.getExceptionMessage());
+						}
+					} else {
+						exception = Classes.newInstance(exceptionClass);
 					}
-					Class<?> superClass = causeClass.getSuperclass();
-					if(Types.isKindOf(superClass, Exception.class)) {
-						causeClass = (Class<? extends Exception>) superClass; 
-					}
-					else {
-						causeClass = null;
-					}
+				}
+				if (exception != null) {
+					throw exception;
 				}
 
 				// if received remote exception is not listed by method signature replace it with RmiException
-				throw new RmiException(connection.getURL(), remoteException);
+				throw new RmiException(connection.getURL(), remoteExceptionContext);
 			}
 
 			// remote server internal error and non JSON response, probably and error HTML page
-			log.error("Internal server error on |{uri}|. Response content type {http_type}.", connection.getURL(), connection.getContentType());
+			log.error("Internal server error on {http_url}. Response content type {http_type}.", connection.getURL(), connection.getContentType());
 			throw new RmiException("Internal server error on |%s|.", connection.getURL());
 
 		default:
-			log.error("HTTP-RMI error on |{uri}|. Server returned |{http_status}|.", connection.getURL(), statusCode);
+			log.error("HTTP-RMI error on {http_url}. Server returned {http_status}.", connection.getURL(), statusCode);
 			throw new RmiException("HTTP-RMI error on |%s|. Server returned |%s|.", connection.getURL(), statusCode);
 		}
 	}
@@ -567,7 +577,7 @@ public class HttpRmiTransaction {
 	 * @return object instance of requested type.
 	 * @throws IOException if stream reading or JSON parsing fails.
 	 */
-	private Object readJsonObject(InputStream stream, Type type) throws IOException {
+	private <T> T readJsonObject(InputStream stream, Class<T> type) throws IOException {
 		try (BufferedReader reader = Files.createBufferedReader(stream)) {
 			return json.parse(reader, type);
 		}
